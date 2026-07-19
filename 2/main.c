@@ -1,10 +1,13 @@
+// #include "../lib/include/stro.h"
 #include "stro.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <string.h>
 
 int main() {
   char buff[64];
@@ -18,17 +21,33 @@ int main() {
   addr.sin_port = htons(8080);
 
   if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-    perror("Error connect\n");
+    perror("connect");
     return -1;
   } else {
     printf("Connect ok\n");
   }
-  
-  int rb = recv(sock, buff, sizeof(buff) - 1, 0);
 
-  if (rb > 0) {
+  while (1) {
+    int rb = recv(sock, buff, sizeof(buff) - 1, 0);
+
+    // if (rb == -1) {
+    //   perror("recv");
+    //   break;
+    // }
+
+    if (rb <= 0) {
+      printf("disconnect\n");
+      break;
+    }
+
     buff[rb] = '\0';
-    printf("%s\n", buff);
+
+    if (analyse(buff)) {
+      printf("%s\n", buff);
+    } else {
+      printf("false\n");
+    }
+    // analyse(buff);
   }
 
   close(sock);

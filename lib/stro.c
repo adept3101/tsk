@@ -1,4 +1,4 @@
-#include "stro.h"
+#include "include/stro.h"
 
 void sort_dcr(char *str) {
   size_t size = strlen(str);
@@ -24,7 +24,7 @@ int sum_str(char *str) {
   int num = 0;
 
   for (int i = 0; str[i] != '\0'; i++) {
-    if (isdigit(str[i])) {
+    if (isdigit((unsigned char)str[i])) {
       num = num * 10 + (str[i] - '0');
     } else {
       sum += num;
@@ -37,11 +37,12 @@ int sum_str(char *str) {
 }
 
 bool analyse(char *str) {
-  bool res = false;
-  int sum = sum_str(str);
-
-  if (strlen(str) > 2 && (sum % 32 == 0))
-    res = true;
-
-  return res;
+  // bool res = false;
+  // int sum = sum_str(str);
+  //
+  // if (strlen(str) > 2 && (sum % 32 == 0))
+  //   res = true;
+  //
+  // return res;
+  return strlen(str) > 2 && sum_str(str) % 32 == 0;
 }

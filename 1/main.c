@@ -1,87 +1,137 @@
+// #include "../lib/include/stro.h"
 #include "stro.h"
+#include <arpa/inet.h>
+#include <bits/pthreadtypes.h>
 #include <ctype.h>
+#include <netinet/in.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 typedef struct {
   char buff[64];
+  int client_fd;
+  bool ready;
 } buff_data;
+
+pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 void *first_thread(void *arg) {
   buff_data *data = (buff_data *)arg;
-  printf("Enter:");
-  scanf("%63s", data->buff);
+  char input[64];
 
-  if (strlen(data->buff) > 64) {
-    printf("EROR:buffer overflow\n");
-  }
+  while (1) {
+    printf("Enter:");
+    scanf("%63s", input);
 
-  for (int i = 0; data->buff[i] != '\0'; i++) {
-    if (!isdigit(data->buff[i])) {
-      printf("ERROR: allowed only numbers\n");
-      return NULL;
+    bool ok = true;
+
+    for (int i = 0; input[i] != '\0'; i++) {
+      if (!isdigit((unsigned char)input[i])) {
+        ok = false;
+        break;
+      }
     }
+
+    if (!ok) {
+      printf("ERROR: allowed only numbers\n");
+      continue;
+    }
+
+    sort_dcr(input);
+
+    pthread_mutex_lock(&m);
+
+    while (data->ready) {
+      pthread_cond_wait(&cond, &m);
+    }
+
+    strcpy(data->buff, input);
+    data->ready = true;
+
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&m);
   }
-  sort_dcr(data->buff);
-  
+
   return NULL;
 }
 
 void *second_thread(void *arg) {
   buff_data *data = (buff_data *)arg;
-  printf("DATA:%s\n", data->buff);
-  sum_str(data->buff);
+  char copy[64];
+
+  while (1) {
+    pthread_mutex_lock(&m);
+    while (!data->ready) {
+      pthread_cond_wait(&cond, &m);
+    }
+
+    strcpy(copy, data->buff);
+
+    memset(data->buff, 0, sizeof(data->buff));
+    data->ready = false;
+
+    pthread_cond_signal(&cond);
+
+    pthread_mutex_unlock(&m);
+
+    printf("DATA:%s\n", copy);
+    sum_str(copy);
+
+    if (data->client_fd != -1) {
+      if (send(data->client_fd, copy, strlen(copy), 0) == -1) {
+        perror("send");
+        close(data->client_fd);
+      }
+    }
+  }
 
   return NULL;
 }
 
 int main() {
   struct sockaddr_in addr, cl_addr;
+  pthread_t thrf, thrs;
+  buff_data data;
+
   int sock = socket(AF_INET, SOCK_STREAM, 0);
   int opt = 1;
 
   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-  
+
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = inet_addr("127.0.0.1");
   addr.sin_port = htons(8080);
 
-if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-    perror("Error bind\n");
-    return -1;
-  } else {
-    printf("Bind ok\n");
+  if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+    perror("bind");
   }
 
   if (listen(sock, 1) == -1) {
-    perror("Error listnening\n");
-    return -1;
-  } else {
-    printf("Listening og\n");
+    perror("listening");
   }
 
-  // int client_fd = accept(client_fd, 0, 0);
-  int client_fd = accept(sock, (struct sockaddr *)&cl_addr , (socklen_t *)&cl_addr);
+  socklen_t len = sizeof(cl_addr);
+  int client_fd = accept(sock, (struct sockaddr *)&cl_addr, &len);
 
-  pthread_t thrf, thrs;
-  // char buff[64];
-  buff_data data;
+  data.client_fd = client_fd;
+  data.ready = false;
+
+  if (client_fd == -1)
+    perror("accept");
 
   pthread_create(&thrf, NULL, first_thread, &data);
-  pthread_join(thrf, NULL);
-
   pthread_create(&thrs, NULL, second_thread, &data);
+
+  pthread_join(thrf, NULL);
   pthread_join(thrs, NULL);
 
-  send(client_fd, data.buff, strlen(data.buff), 0);
-
-  close(sock);
   close(client_fd);
+  close(sock);
 
   return 0;
 }
