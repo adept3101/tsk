@@ -2,7 +2,7 @@
 
 1. Клонировать репозиторий:
 ```
-git clone https://github.com/adept/tsk
+git clone https://github.com/adept3101/tsk
 ```
 
 2. Перейти в директорию ``lib`` и собрать библиотеку:
