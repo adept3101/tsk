@@ -1,4 +1,5 @@
 #include "stro.h"
+#include <signal.h>
 #include <arpa/inet.h>
 #include <bits/pthreadtypes.h>
 #include <ctype.h>
@@ -102,6 +103,7 @@ void *second_thread(void *arg) {
 }
 
 int main() {
+  signal(SIGPIPE, SIG_IGN);
   struct sockaddr_in addr, cl_addr;
   pthread_t thrf, thrs;
   buff_data data;
