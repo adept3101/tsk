@@ -1,4 +1,3 @@
-// #include "../lib/include/stro.h"
 #include "stro.h"
 #include <arpa/inet.h>
 #include <bits/pthreadtypes.h>
@@ -85,7 +84,11 @@ void *second_thread(void *arg) {
     if (data->client_fd != -1) {
       if (send(data->client_fd, copy, strlen(copy), 0) == -1) {
         perror("send");
+
+        pthread_mutex_lock(&m);
         close(data->client_fd);
+        data->client_fd = -1;
+        pthread_mutex_unlock(&m);
       }
     }
   }

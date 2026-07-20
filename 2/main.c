@@ -1,4 +1,3 @@
-// #include "../lib/include/stro.h"
 #include "stro.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -36,8 +35,22 @@ int main() {
     // }
 
     if (rb <= 0) {
-      printf("disconnect\n");
-      break;
+
+      close(sock);
+
+      printf("disconnect. Reconnecting...\n");
+      while (1) {
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == 0) {
+          printf("Connected\n");
+          break;
+        }
+
+        close(sock);
+        sleep(1);
+      }
+      continue;
     }
 
     buff[rb] = '\0';
