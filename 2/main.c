@@ -3,7 +3,6 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -28,11 +27,6 @@ int main() {
 
   while (1) {
     int rb = recv(sock, buff, sizeof(buff) - 1, 0);
-
-    // if (rb == -1) {
-    //   perror("recv");
-    //   break;
-    // }
 
     if (rb <= 0) {
 
@@ -60,7 +54,6 @@ int main() {
     } else {
       printf("false\n");
     }
-    // analyse(buff);
   }
 
   close(sock);

@@ -13,6 +13,7 @@
 typedef struct {
   char buff[64];
   int client_fd;
+  int server_fd;
   bool ready;
 } buff_data;
 
@@ -81,8 +82,12 @@ void *second_thread(void *arg) {
     printf("DATA:%s\n", copy);
     sum_str(copy);
 
-    if (data->client_fd != -1) {
-      if (send(data->client_fd, copy, strlen(copy), 0) == -1) {
+    pthread_mutex_lock(&m);
+    int fd = data->client_fd;
+    pthread_mutex_unlock(&m);
+
+    if (fd != -1) {
+      if (send(fd, copy, strlen(copy), 0) == -1) {
         perror("send");
 
         pthread_mutex_lock(&m);
@@ -118,22 +123,35 @@ int main() {
     perror("listening");
   }
 
-  socklen_t len = sizeof(cl_addr);
-  int client_fd = accept(sock, (struct sockaddr *)&cl_addr, &len);
-
-  data.client_fd = client_fd;
+  data.client_fd = -1;
   data.ready = false;
-
-  if (client_fd == -1)
-    perror("accept");
 
   pthread_create(&thrf, NULL, first_thread, &data);
   pthread_create(&thrs, NULL, second_thread, &data);
 
-  pthread_join(thrf, NULL);
-  pthread_join(thrs, NULL);
+  while (1) {
+    socklen_t len = sizeof(cl_addr);
 
-  close(client_fd);
+    int fd = accept(sock, (struct sockaddr *)&cl_addr, &len);
+
+    if (fd == -1) {
+      perror("accept");
+      continue;
+    }
+
+    pthread_mutex_lock(&m);
+
+    if (data.client_fd != -1)
+      close(data.client_fd);
+
+    data.client_fd = fd;
+
+    pthread_mutex_unlock(&m);
+
+    printf("Client connected\n");
+  }
+
+  close(data.client_fd);
   close(sock);
 
   return 0;
